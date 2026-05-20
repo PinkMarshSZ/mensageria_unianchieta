@@ -1,0 +1,54 @@
+version: '3.8'
+services:
+# Banco de dados ORACLE
+  oracle-db:    
+    image: gvenzl/oracle-xe:21-slim  # Aqui o docker vai baixar a versão que não possuo no computador
+    container_name: oracle-db
+    ports:
+      - "1522:1521"
+    environment:
+      - ORACLE_PASSWORD=8958316181009917 # Senha da minha base de dados
+      - ORACLE_USER=system # Usuário
+    healthcheck:
+      test: ["CMD-SHELL", "lsnrctl status"] # Testa se o listener está ativo
+      interval: 10s   # Tenta de 10 em 10 segundos
+      timeout: 5s     # Se demorar mais de 5s para responder, falha a tentativa
+      retries: 15     # Tenta até 15 vezes antes de desistir
+      start_period: 30s # Dá 30s de folga antes de começar a testar (Oracle é um serviço pesado)
+    networks:
+      - tcc-network
+
+  # Mensageria RABBITMQ
+  rabbitmq:   
+    image: rabbitmq:3.10-management # Utiliza a versão que já possuo na minha máquina
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - tcc-network
+
+  # Utiliza o Dockerfile que criei na pasta raiz do projeto
+  integrador-app:
+    build: .
+    container_name: java_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      oracle-db: # referencia a primeira parte do codigo que liga no banco de dados que criei
+        condition: service_healthy 
+      rabbitmq: # referencia a segunda parte do codigo que criei
+        condition: service_started 
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@oracle-db:1521/XE # utilizei oracle-db porque é o nome do servico na porta de rede do docker
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_DATASOURCE_USERNAME=system
+      - SPRING_DATASOURCE_PASSWORD=8958316181009917
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.OracleDialect
+    networks:
+      - tcc-network
+
+networks:
+  tcc-network:
+    driver: bridge
+

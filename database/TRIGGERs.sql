@@ -1,0 +1,21 @@
+-- TRIGGER PARA PEGAR A DATA DA ULTIMA VEZ QUE FOI ATUALIZADO ALGUM REGISTRO NA TABELA Estoque
+CREATE OR REPLACE TRIGGER TRG_ATUALIZA_DATA_VENDA
+BEFORE UPDATE OF QTD_ATUAL ON ESTOQUE
+FOR EACH ROW
+BEGIN
+    :NEW.DATA_ULTIMA_VENDA := SYSTIMESTAMP;
+END;
+
+
+Esta é a solução mais robusta para integração de sistemas. Sempre que o Java inserir um novo pedido, o próprio Oracle diminuirá o estoque automaticamente, sem que você precise mudar uma linha de código no Java.
+
+CREATE OR REPLACE TRIGGER TRG_BAIXA_ESTOQUE
+AFTER INSERT ON PEDIDO
+FOR EACH ROW
+BEGIN
+    UPDATE ESTOQUE 
+    SET QTD_ATUAL = QTD_ATUAL - :NEW.QUANTIDADE,
+        DATA_ULTIMA_VENDA = SYSTIMESTAMP
+    WHERE ID_PROD = :NEW.ID_PROD;
+END;
+/
